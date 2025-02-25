@@ -22,9 +22,12 @@ circle-ci = { repository = "embedded-graphics/simulator", branch = "master" }
 [dependencies]
 image = { version = "0.25.1", default-features=false, features=["png"] }
 base64 = "0.22.1"
-embedded-graphics = "0.8.1"
+embedded-graphics = { version = "0.8.1", default-features=false, features = ["async_draw"] }
 sdl2 = { version = "0.37.0", optional = true }
 ouroboros = { version = "0.18.0", optional = true }
+
+[patch.crates-io]
+embedded-graphics = {git = "https://github.com/paulmoseskailer/embedded-graphics.git"}
 
 [features]
 default = ["with-sdl"]
