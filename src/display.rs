@@ -233,6 +233,7 @@ where
     }
 }
 
+#[maybe_async::maybe_async(AFIT)]
 impl<C: PixelColor> DrawTarget for SimulatorDisplay<C> {
     type Color = C;
     type Error = core::convert::Infallible;
