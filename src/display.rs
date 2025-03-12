@@ -3,7 +3,9 @@ use std::{convert::TryFrom, fs::File, io::BufReader, path::Path};
 use embedded_graphics::{
     pixelcolor::{raw::ToBytes, BinaryColor, Gray8, Rgb888},
     prelude::*,
+    primitives::Rectangle,
 };
+use shared_display::sharable_display::{DisplayPartition, SharableBufferedDisplay};
 
 use crate::{output_image::OutputImage, output_settings::OutputSettings};
 
@@ -258,6 +260,50 @@ impl<C> OriginDimensions for SimulatorDisplay<C> {
     }
 }
 
+impl<C> SharableBufferedDisplay for SimulatorDisplay<C>
+where
+    C: PixelColor,
+{
+    type BufferType = C;
+    fn split_display_buffer(
+        &mut self, /* add option to split vertically here later */
+    ) -> (
+        DisplayPartition<SimulatorDisplay<C>, C>,
+        DisplayPartition<SimulatorDisplay<C>, C>,
+    ) {
+        let size = self.size();
+        let left_partition =
+            Rectangle::new(Point::new(0, 0), Size::new(size.width / 2, size.height));
+        let right_partition = Rectangle::new(
+            Point::new((size.width / 2).try_into().unwrap(), 0),
+            Size::new(size.width / 2, size.height),
+        );
+        println!(
+            "left: ({},{}) size {}x{}",
+            left_partition.top_left.x,
+            left_partition.top_left.y,
+            left_partition.size.width,
+            left_partition.size.height,
+        );
+        println!(
+            "right: ({},{}) size {}x{}",
+            right_partition.top_left.x,
+            right_partition.top_left.y,
+            right_partition.size.width,
+            right_partition.size.height,
+        );
+        (
+            DisplayPartition::new(&mut self.pixels, left_partition),
+            DisplayPartition::new(&mut self.pixels, right_partition),
+        )
+    }
+
+    fn get_pixel_value(pixel: Pixel<Self::Color>) -> Self::BufferType {
+        // BufferType is identical to PixelColor
+        pixel.1
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,6 +313,7 @@ mod tests {
         primitives::{Circle, Line, PrimitiveStyle},
     };
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn rgb_output_image() {
         let mut display = SimulatorDisplay::<BinaryColor>::new(Size::new(2, 4));
@@ -288,6 +335,7 @@ mod tests {
         assert_eq!(image.data.as_ref(), expected);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn grayscale_image_buffer() {
         let mut display = SimulatorDisplay::<BinaryColor>::new(Size::new(2, 4));
@@ -309,6 +357,7 @@ mod tests {
         assert_eq!(image.data.as_ref(), expected);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn to_bytes_u1() {
         let display = SimulatorDisplay {
@@ -334,6 +383,7 @@ mod tests {
         assert_eq!(&display.to_ne_bytes(), &expected);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn to_bytes_u2() {
         let display = SimulatorDisplay {
@@ -357,6 +407,7 @@ mod tests {
         assert_eq!(&display.to_ne_bytes(), &expected);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn to_bytes_u4() {
         let display = SimulatorDisplay {
@@ -384,6 +435,7 @@ mod tests {
         assert_eq!(&display.to_ne_bytes(), &expected);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn to_bytes_u8() {
         let expected = [
@@ -406,6 +458,7 @@ mod tests {
         assert_eq!(&display.to_ne_bytes(), &expected);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn to_bytes_u16() {
         let expected = vec![Rgb565::new(0x10, 0x00, 0x00), Rgb565::new(0x00, 0x00, 0x01)];
@@ -419,6 +472,7 @@ mod tests {
         assert_eq!(&display.to_le_bytes(), &[0x00, 0x80, 0x01, 0x00]);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn to_bytes_u24() {
         let expected = vec![Rgb888::new(0x80, 0x00, 0x00), Rgb888::new(0x00, 0x00, 0x01)];
@@ -438,6 +492,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn diff_equal() {
         let display = SimulatorDisplay::<BinaryColor>::new(Size::new(4, 6));
@@ -446,6 +501,7 @@ mod tests {
         assert_eq!(display.diff(&expected), None);
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     fn diff_not_equal() {
         let circle = Circle::new(Point::zero(), 3);
@@ -461,6 +517,7 @@ mod tests {
         assert_eq!(display.diff(&expected), Some(display));
     }
 
+    #[cfg(not(feature = "async_draw"))]
     #[test]
     #[should_panic(expected = "both displays must have the same size (self: 4x6, other: 4x5)")]
     fn diff_wrong_size() {
@@ -468,5 +525,52 @@ mod tests {
         let expected = SimulatorDisplay::<BinaryColor>::new(Size::new(4, 5));
 
         assert_eq!(display.diff(&expected), None);
+    }
+
+    #[cfg(feature = "async_draw")]
+    #[tokio::test]
+    async fn split_display() -> Result<(), core::convert::Infallible> {
+        let mut display = SimulatorDisplay::<BinaryColor>::new(Size::new(8, 4));
+        let (mut left_display, mut right_display) = display.split_display_buffer();
+
+        Line::new(Point::new(0, 3), Point::new(7, 0))
+            .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
+            .draw(&mut left_display)
+            .await?;
+
+        let image_raw: Vec<u8> = display.to_be_bytes();
+        assert_eq!(image_raw.len(), display.size().height.try_into().unwrap());
+
+        #[rustfmt::skip]
+        let expected: &[u8] = &[
+            0b00000000,
+            0b00000000,
+            0b00110000,
+            0b11000000
+        ];
+        assert_eq!(&image_raw, expected);
+
+        left_display.clear(BinaryColor::Off).await?;
+        assert_eq!(display.to_be_bytes(), &[0; 4]);
+
+        Line::new(Point::new(0, 3), Point::new(7, 0))
+            .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
+            .draw(&mut right_display)
+            .await?;
+
+        #[rustfmt::skip]
+        let expected: &[u8] = &[
+            0b00000011,
+            0b00001100,
+            0b00000000,
+            0b00000000
+        ];
+        let image_raw: Vec<u8> = display.to_be_bytes();
+        assert_eq!(&image_raw, expected);
+
+        right_display.clear(BinaryColor::Off).await?;
+        assert_eq!(display.to_be_bytes(), &[0; 4]);
+
+        Ok(())
     }
 }
