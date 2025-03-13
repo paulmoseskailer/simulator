@@ -5,6 +5,7 @@ use embedded_graphics::{
     prelude::*,
     primitives::Rectangle,
 };
+#[cfg(feature = "async_draw")]
 use shared_display::sharable_display::{DisplayPartition, SharableBufferedDisplay};
 
 use crate::{output_image::OutputImage, output_settings::OutputSettings};
@@ -260,6 +261,7 @@ impl<C> OriginDimensions for SimulatorDisplay<C> {
     }
 }
 
+#[cfg(feature = "async_draw")]
 impl<C> SharableBufferedDisplay for SimulatorDisplay<C>
 where
     C: PixelColor,
@@ -277,20 +279,6 @@ where
         let right_partition = Rectangle::new(
             Point::new((size.width / 2).try_into().unwrap(), 0),
             Size::new(size.width / 2, size.height),
-        );
-        println!(
-            "left: ({},{}) size {}x{}",
-            left_partition.top_left.x,
-            left_partition.top_left.y,
-            left_partition.size.width,
-            left_partition.size.height,
-        );
-        println!(
-            "right: ({},{}) size {}x{}",
-            right_partition.top_left.x,
-            right_partition.top_left.y,
-            right_partition.size.width,
-            right_partition.size.height,
         );
         (
             DisplayPartition::new(&mut self.pixels, left_partition),
