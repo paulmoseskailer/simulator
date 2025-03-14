@@ -266,29 +266,19 @@ impl<C> SharableBufferedDisplay for SimulatorDisplay<C>
 where
     C: PixelColor,
 {
-    type BufferType = C;
-    fn split_display_buffer(
-        &mut self, /* add option to split vertically here later */
-    ) -> (
-        DisplayPartition<SimulatorDisplay<C>, C>,
-        DisplayPartition<SimulatorDisplay<C>, C>,
-    ) {
-        let size = self.size();
-        let left_partition =
-            Rectangle::new(Point::new(0, 0), Size::new(size.width / 2, size.height));
-        let right_partition = Rectangle::new(
-            Point::new((size.width / 2).try_into().unwrap(), 0),
-            Size::new(size.width / 2, size.height),
-        );
-        (
-            DisplayPartition::new(&mut self.pixels, left_partition),
-            DisplayPartition::new(&mut self.pixels, right_partition),
-        )
+    type BufferElement = C;
+    fn get_buffer(&mut self) -> &mut [Self::BufferElement] {
+        self.pixels.as_mut()
     }
 
-    fn get_pixel_value(pixel: Pixel<Self::Color>) -> Self::BufferType {
-        // BufferType is identical to PixelColor
-        pixel.1
+    fn calculate_buffer_index(point: Point, display_width: usize) -> usize {
+        (point.x + point.y * display_width as i32)
+            .try_into()
+            .unwrap()
+    }
+
+    fn set_pixel(buffer: &mut Self::BufferElement, pixel: Pixel<Self::Color>) {
+        *buffer = pixel.1;
     }
 }
 
