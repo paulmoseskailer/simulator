@@ -3,10 +3,9 @@ use std::{convert::TryFrom, fs::File, io::BufReader, path::Path};
 use embedded_graphics::{
     pixelcolor::{raw::ToBytes, BinaryColor, Gray8, Rgb888},
     prelude::*,
-    primitives::Rectangle,
 };
 #[cfg(feature = "async_draw")]
-use shared_display::sharable_display::{DisplayPartition, SharableBufferedDisplay};
+use shared_display::sharable_display::SharableBufferedDisplay;
 
 use crate::{output_image::OutputImage, output_settings::OutputSettings};
 
@@ -271,8 +270,8 @@ where
         self.pixels.as_mut()
     }
 
-    fn calculate_buffer_index(point: Point, display_width: usize) -> usize {
-        (point.x + point.y * display_width as i32)
+    fn calculate_buffer_index(point: Point, parent_size: Size) -> usize {
+        (point.x + point.y * parent_size.width as i32)
             .try_into()
             .unwrap()
     }
