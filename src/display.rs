@@ -507,46 +507,51 @@ mod tests {
     #[cfg(feature = "async_draw")]
     #[tokio::test]
     async fn split_display() -> Result<(), core::convert::Infallible> {
-        let mut display = SimulatorDisplay::<BinaryColor>::new(Size::new(8, 4));
-        let (mut left_display, mut right_display) = display.split_display_buffer();
+        let mut display = SimulatorDisplay::<BinaryColor>::new(Size::new(16, 4));
+        let (mut left_display, mut right_display) = display.split_buffer_vertically();
 
-        Line::new(Point::new(0, 3), Point::new(7, 0))
+        Line::new(Point::new(0, 3), Point::new(15, 0))
             .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
             .draw(&mut left_display)
             .await?;
 
         let image_raw: Vec<u8> = display.to_be_bytes();
-        assert_eq!(image_raw.len(), display.size().height.try_into().unwrap());
+        assert_eq!(
+            image_raw.len(),
+            (display.size().height * display.size().width / 8)
+                .try_into()
+                .unwrap()
+        );
 
         #[rustfmt::skip]
         let expected: &[u8] = &[
-            0b00000000,
-            0b00000000,
-            0b00110000,
-            0b11000000
+            0b00000000, 0b00000000,
+            0b00000000, 0b00000000,
+            0b00011111, 0b00000000,
+            0b11100000, 0b00000000
         ];
         assert_eq!(&image_raw, expected);
 
         left_display.clear(BinaryColor::Off).await?;
-        assert_eq!(display.to_be_bytes(), &[0; 4]);
+        assert_eq!(display.to_be_bytes(), &[0; 8]);
 
-        Line::new(Point::new(0, 3), Point::new(7, 0))
+        Line::new(Point::new(0, 3), Point::new(15, 0))
             .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
             .draw(&mut right_display)
             .await?;
 
         #[rustfmt::skip]
         let expected: &[u8] = &[
-            0b00000011,
-            0b00001100,
-            0b00000000,
-            0b00000000
+            0b00000000, 0b00000000,
+            0b00000000, 0b00000000,
+            0b00000000, 0b00011111,
+            0b00000000, 0b11100000,
         ];
         let image_raw: Vec<u8> = display.to_be_bytes();
         assert_eq!(&image_raw, expected);
 
         right_display.clear(BinaryColor::Off).await?;
-        assert_eq!(display.to_be_bytes(), &[0; 4]);
+        assert_eq!(display.to_be_bytes(), &[0; 8]);
 
         Ok(())
     }
