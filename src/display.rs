@@ -5,7 +5,7 @@ use embedded_graphics::{
     prelude::*,
 };
 #[cfg(feature = "async_draw")]
-use shared_display::sharable_display::SharableBufferedDisplay;
+use shared_display_core::SharableBufferedDisplay;
 
 use crate::{output_image::OutputImage, output_settings::OutputSettings};
 
