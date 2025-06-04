@@ -1,11 +1,13 @@
 use std::{convert::TryFrom, fs::File, io::BufReader, path::Path};
 
+#[cfg(feature = "async_draw")]
+use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::{
     pixelcolor::{raw::ToBytes, BinaryColor, Gray8, Rgb888},
     prelude::*,
 };
 #[cfg(feature = "async_draw")]
-use shared_display_core::SharableBufferedDisplay;
+use shared_display_core::{CompressableDisplay, SharableBufferedDisplay};
 
 use crate::{output_image::OutputImage, output_settings::OutputSettings};
 
@@ -13,7 +15,8 @@ use crate::{output_image::OutputImage, output_settings::OutputSettings};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SimulatorDisplay<C> {
     size: Size,
-    pub(crate) pixels: Box<[C]>,
+    /// TODO documentation
+    pub pixels: Box<[C]>,
 }
 
 impl<C: PixelColor> SimulatorDisplay<C> {
@@ -270,15 +273,27 @@ where
         self.pixels.as_mut()
     }
 
-    fn calculate_buffer_index(point: Point, parent_size: Size) -> usize {
-        (point.x + point.y * parent_size.width as i32)
+    fn calculate_buffer_index(point: Point, buffer_area_size: Size) -> usize {
+        (point.x + point.y * buffer_area_size.width as i32)
             .try_into()
             .unwrap()
     }
 
-    fn set_pixel(buffer: &mut Self::BufferElement, pixel: Pixel<Self::Color>) {
-        *buffer = pixel.1;
+    fn map_to_buffer_element(color: Self::Color) -> Self::BufferElement {
+        color
     }
+}
+
+#[cfg(feature = "async_draw")]
+impl CompressableDisplay for SimulatorDisplay<BinaryColor> {
+    async fn flush_chunk(&mut self, chunk: Vec<BinaryColor>, chunk_area: Rectangle) {
+        let start_index = chunk_area.top_left.y as usize * chunk_area.size.width as usize
+            + chunk_area.top_left.x as usize;
+        let pixels_to_flush = (chunk_area.size.width * chunk_area.size.height) as usize;
+        self.pixels[start_index..(start_index + pixels_to_flush)].copy_from_slice(&chunk);
+    }
+
+    fn drop_buffer(&mut self) {}
 }
 
 #[cfg(test)]
