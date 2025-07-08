@@ -285,15 +285,28 @@ where
 }
 
 #[cfg(feature = "async_draw")]
-impl CompressableDisplay for SimulatorDisplay<BinaryColor> {
-    async fn flush_chunk(&mut self, chunk: Vec<BinaryColor>, chunk_area: Rectangle) {
+impl<C> CompressableDisplay for SimulatorDisplay<C>
+where
+    C: PixelColor + Copy + Default + PartialEq,
+{
+    type BufferElement = C;
+
+    fn calculate_buffer_index(point: Point, buffer_area_size: Size) -> usize {
+        (point.x + point.y * buffer_area_size.width as i32)
+            .try_into()
+            .unwrap()
+    }
+
+    fn map_to_buffer_element(color: Self::Color) -> Self::BufferElement {
+        color
+    }
+
+    async fn flush_chunk(&mut self, chunk: &[C], chunk_area: Rectangle) {
         let start_index = chunk_area.top_left.y as usize * chunk_area.size.width as usize
             + chunk_area.top_left.x as usize;
         let pixels_to_flush = (chunk_area.size.width * chunk_area.size.height) as usize;
         self.pixels[start_index..(start_index + pixels_to_flush)].copy_from_slice(&chunk);
     }
-
-    fn drop_buffer(&mut self) {}
 }
 
 #[cfg(test)]
