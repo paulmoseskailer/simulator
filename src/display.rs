@@ -1,13 +1,13 @@
 use std::{convert::TryFrom, fs::File, io::BufReader, path::Path};
 
 #[cfg(feature = "async_draw")]
+use asydis_core::{CompressableDisplay, SharableBufferedDisplay};
+#[cfg(feature = "async_draw")]
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::{
     pixelcolor::{raw::ToBytes, BinaryColor, Gray8, Rgb888},
     prelude::*,
 };
-#[cfg(feature = "async_draw")]
-use shared_display_core::{CompressableDisplay, SharableBufferedDisplay};
 
 use crate::{output_image::OutputImage, output_settings::OutputSettings};
 
